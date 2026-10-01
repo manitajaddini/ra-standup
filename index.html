@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <title>Jira standup view</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --border: #e2e8f0;
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --primary: #0284c7;
+      --primary-hover: #0369a1;
+      --badge-done: #dcfce7;
+      --badge-done-text: #166534;
+      --badge-progress: #dbeafe;
+      --badge-progress-text: #1e40af;
+      --badge-todo: #f1f5f9;
+      --badge-todo-text: #475569;
+      --badge-inbox: #fef3c7;
+      --badge-inbox-text: #92400e;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      padding: 24px;
+    }
+
+    header {
+      background: var(--card-bg);
+      padding: 16px 20px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-bottom: 20px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+
+    h1 {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: #0f172a;
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .control-group {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      user-select: none;
+      cursor: pointer;
+    }
+
+    input[type="text"], select {
+      padding: 6px 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 13px;
+      background: #fff;
+    }
+
+    button {
+      padding: 6px 12px;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      color: var(--text);
+      transition: background 0.15s ease;
+    }
+
+    button:hover {
+      background: #f1f5f9;
+    }
+
+    button.primary {
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+    }
+
+    button.primary:hover {
+      background: var(--primary-hover);
+    }
+
+    .file-btn {
+      position: relative;
+      overflow: hidden;
+      display: inline-block;
+    }
+
+    .file-btn input[type="file"] {
+      position: absolute;
+      left: 0;
+      top: 0;
+      opacity: 0;
+      cursor: pointer;
+      width: 100%;
+      height: 100%;
+    }
+
+    .stats {
+      margin-left: auto;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    #board {
+      transform-origin: top left;
+      transition: transform 0.15s ease;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .initiative-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    }
+
+    .row-header {
+      display: flex;
+      align-items: center;
+      padding: 12px 16px;
+      cursor: pointer;
+      user-select: none;
+      background: #fafafa;
+      border-bottom: 1px solid transparent;
+      gap: 10px;
+    }
+
+    .row-header:hover {
+      background: #f1f5f9;
+    }
+
+    .initiative-card.open > .row-header {
+      border-bottom-color: var(--border);
+    }
+
+    .toggle-icon {
+      width: 18px;
+      text-align: center;
+      font-weight: bold;
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
+
+    .type-tag {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      padding: 2px 6px;
+      border-radius: 4px;
+      letter-spacing: 0.5px;
+      flex-shrink: 0;
+    }
+
+    .type-initiative { background: #e0e7ff; color: #3730a3; }
+    .type-epic { background: #fae8ff; color: #86198f; }
+    .type-task { background: #e0f2fe; color: #0369a1; }
+    .type-sub-task { background: #f1f5f9; color: #475569; }
+    .type-bug { background: #fee2e2; color: #991b1b; }
+
+    .issue-key {
+      font-family: monospace;
+      font-size: 13px;
+      flex-shrink: 0;
+    }
+
+    .issue-key a {
+      color: var(--primary);
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    .issue-key a:hover {
+      text-decoration: underline;
+    }
+
+    .issue-title {
+      font-size: 14px;
+      flex-grow: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .counter-badge {
+      font-size: 11px;
+      color: var(--text-muted);
+      background: #e2e8f0;
+      padding: 2px 6px;
+      border-radius: 10px;
+      font-weight: 500;
+      flex-shrink: 0;
+    }
+
+    .assignee {
+      font-size: 12px;
+      color: var(--text-muted);
+      background: #f1f5f9;
+      padding: 2px 8px;
+      border-radius: 12px;
+      flex-shrink: 0;
+    }
+
+    .status-badge {
+      font-size: 12px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      flex-shrink: 0;
+      font-weight: 500;
+    }
+
+    .status-inbox { background: var(--badge-inbox); color: var(--badge-inbox-text); }
+    .status-todo { background: var(--badge-todo); color: var(--badge-todo-text); }
+    .status-progress { background: var(--badge-progress); color: var(--badge-progress-text); }
+    .status-done { background: var(--badge-done); color: var(--badge-done-text); }
+
+    .children-container {
+      display: none;
+      padding: 8px 16px 12px 28px;
+    }
+
+    .open > .children-container {
+      display: block;
+    }
+
+    .epic-block {
+      border-left: 2px solid #cbd5e1;
+      margin: 8px 0;
+      background: #ffffff;
+    }
+
+    .epic-block > .row-header {
+      background: #ffffff;
+      padding: 8px 12px;
+    }
+
+    .epic-block > .row-header:hover {
+      background: #f8fafc;
+    }
+
+    .task-list {
+      padding-left: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-top: 4px;
+    }
+
+    .task-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 10px;
+      border-radius: 4px;
+      background: #f8fafc;
+      border: 1px solid var(--border);
+    }
+
+    .task-row:hover {
+      background: #f1f5f9;
+    }
+
+    .empty-state {
+      padding: 40px;
+      text-align: center;
+      color: var(--text-muted);
+      background: #fff;
+      border: 1px dashed var(--border);
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Jira standup view - Research Analytics</h1>
+    <div class="toolbar">
+      <div class="file-btn">
+        <button class="primary">Load CSV export</button>
+        <input type="file" id="csvFileInput" accept=".csv">
+      </div>
+
+      <button id="clearSavedBtn" title="Forget the CSV stored in this browser">Clear saved data</button>
+
+      <button id="toggleAllBtn">Expand all</button>
+
+      <label class="control-group">
+        <input type="checkbox" id="hideEmptyInitToggle" checked>
+        Hide initiatives without tasks
+      </label>
+
+      <label class="control-group">
+        <input type="checkbox" id="hideEmptyEpicsToggle" checked>
+        Hide epics without tasks
+      </label>
+
+      <label class="control-group">
+        <input type="checkbox" id="hideDoneToggle" checked>
+        Hide completed branches (cascading)
+      </label>
+
+      <div class="control-group">
+        <label for="assigneeFilter">Assignee:</label>
+        <select id="assigneeFilter">
+          <option value="">All team members</option>
+        </select>
+      </div>
+
+      <input type="text" id="searchFilter" placeholder="Filter by title or key..." style="min-width: 180px;">
+
+      <div class="control-group" style="margin-left: 8px;">
+        <button id="zoomOutBtn">-</button>
+        <span id="zoomLevel">100%</span>
+        <button id="zoomInBtn">+</button>
+        <button id="zoomResetBtn">Reset</button>
+      </div>
+
+      <div class="stats" id="statsBar">No file loaded</div>
+    </div>
+  </header>
+
+  <main id="board">
+    <div class="empty-state">
+      Please click "Load CSV export" and select your Jira Advanced Roadmaps export file to view items.
+    </div>
+  </main>
+
+  <script>
+    let rawItems = [];
+    let zoom = 1.0;
+    let allExpanded = false;
+    let loadedInfo = '';
+    // Per-card open/closed choices (issue key -> true/false); overrides allExpanded
+    let openState = {};
+
+    // --- Remember view settings in this browser only (localStorage) ---
+    const VIEW_KEY = 'jiraStandup.viewSettings';
+    function readView() {
+      try { return JSON.parse(localStorage.getItem(VIEW_KEY)) || {}; } catch (err) { return {}; }
+    }
+    let savedView = readView();
+    function saveView() {
+      const v = {
+        hideEmptyInit: document.getElementById('hideEmptyInitToggle').checked,
+        hideEmptyEpics: document.getElementById('hideEmptyEpicsToggle').checked,
+        hideDone: document.getElementById('hideDoneToggle').checked,
+        assignee: document.getElementById('assigneeFilter').value,
+        search: document.getElementById('searchFilter').value,
+        zoom, allExpanded, openState
+      };
+      savedView = v;
+      try { localStorage.setItem(VIEW_KEY, JSON.stringify(v)); } catch (err) {}
+    }
+    function isOpen(key) {
+      return Object.prototype.hasOwnProperty.call(openState, key) ? openState[key] : allExpanded;
+    }
+    const jiraBaseUrl = "https://jira.tudelft.nl/browse/";
+
+    function parseCSV(text) {
+      const rows = [];
+      let currentRow = [];
+      let currentVal = '';
+      let insideQuotes = false;
+
+      for (let i = 0; i < text.length; i++) {
+        const char = text[i];
+        const nextChar = text[i + 1];
+
+        if (char === '"') {
+          if (insideQuotes && nextChar === '"') {
+            currentVal += '"';
+            i++;
+          } else {
+            insideQuotes = !insideQuotes;
+          }
+        } else if (char === ',' && !insideQuotes) {
+          currentRow.push(currentVal);
+          currentVal = '';
+        } else if ((char === '\r' || char === '\n') && !insideQuotes) {
+          if (char === '\r' && nextChar === '\n') i++;
+          currentRow.push(currentVal);
+          if (currentRow.length > 1 || currentRow[0] !== '') {
+            rows.push(currentRow);
+          }
+          currentRow = [];
+          currentVal = '';
+        } else {
+          currentVal += char;
+        }
+      }
+      if (currentVal || currentRow.length > 0) {
+        currentRow.push(currentVal);
+        rows.push(currentRow);
+      }
+      return rows;
+    }
+
+    function isStatusDone(status) {
+      if (!status) return false;
+      const s = status.trim().toLowerCase();
+      return s === 'done' || s === 'closed' || s === 'resolved';
+    }
+
+    function getStatusClass(status) {
+      if (!status) return 'status-todo';
+      const s = status.toLowerCase();
+      if (s.includes('in progress')) return 'status-progress';
+      if (s.includes('inbox')) return 'status-inbox';
+      if (isStatusDone(status)) return 'status-done';
+      return 'status-todo';
+    }
+
+    function loadDataFromCSV(csvText) {
+      const rows = parseCSV(csvText);
+      if (rows.length < 2) return;
+
+      const header = rows[0].map(h => h.trim());
+      const getCol = (name) => header.indexOf(name);
+
+      const idxHierarchy = getCol("Hierarchy");
+      const idxTitle = getCol("Title");
+      const idxAssignee = getCol("Assignee");
+      const idxParent = getCol("Parent");
+      const idxKey = getCol("Issue key");
+      const idxStatus = getCol("Issue status");
+
+      rawItems = [];
+      const assignees = new Set();
+
+      for (let i = 1; i < rows.length; i++) {
+        const r = rows[i];
+        if (!r[idxKey] && !r[idxTitle]) continue;
+
+        const assignee = r[idxAssignee] ? r[idxAssignee].trim() : '';
+        if (assignee) assignees.add(assignee);
+
+        rawItems.push({
+          hierarchy: r[idxHierarchy] ? r[idxHierarchy].trim() : 'Task',
+          title: r[idxTitle] ? r[idxTitle].trim() : '',
+          assignee: assignee,
+          parent: r[idxParent] ? r[idxParent].trim() : '',
+          key: r[idxKey] ? r[idxKey].trim() : '',
+          status: r[idxStatus] ? r[idxStatus].trim() : 'To Do',
+          children: []
+        });
+      }
+
+      const select = document.getElementById('assigneeFilter');
+      const prevAssignee = select.value || savedView.assignee || '';
+      select.innerHTML = '<option value="">All team members</option>';
+      Array.from(assignees).sort().forEach(person => {
+        const opt = document.createElement('option');
+        opt.value = person;
+        opt.textContent = person;
+        select.appendChild(opt);
+      });
+      if (assignees.has(prevAssignee)) select.value = prevAssignee;
+
+      renderBoard();
+    }
+
+    function renderBoard() {
+      const board = document.getElementById('board');
+      const hideDone = document.getElementById('hideDoneToggle').checked;
+      const hideEmptyInit = document.getElementById('hideEmptyInitToggle').checked;
+      const hideEmptyEpics = document.getElementById('hideEmptyEpicsToggle').checked;
+      const selectedAssignee = document.getElementById('assigneeFilter').value;
+      const search = document.getElementById('searchFilter').value.toLowerCase().trim();
+
+      if (rawItems.length === 0) {
+        board.innerHTML = '<div class="empty-state">No items loaded. Please select a CSV file.</div>';
+        document.getElementById('statsBar').textContent = '0 items';
+        return;
+      }
+
+      const initiatives = [];
+      const epics = [];
+      const tasks = [];
+
+      rawItems.forEach(item => {
+        item.children = [];
+        const h = item.hierarchy.toLowerCase();
+        if (h === 'initiative') {
+          initiatives.push(item);
+        } else if (h === 'epic') {
+          epics.push(item);
+        } else {
+          tasks.push(item);
+        }
+      });
+
+      const epicMap = new Map();
+      epics.forEach(e => epicMap.set(e.title, e));
+
+      const orphanedTasks = [];
+      tasks.forEach(t => {
+        if (t.parent && epicMap.has(t.parent)) {
+          epicMap.get(t.parent).children.push(t);
+        } else {
+          orphanedTasks.push(t);
+        }
+      });
+
+      const initMap = new Map();
+      initiatives.forEach(init => initMap.set(init.title, init));
+
+      const orphanedEpics = [];
+      epics.forEach(e => {
+        if (e.parent && initMap.has(e.parent)) {
+          initMap.get(e.parent).children.push(e);
+        } else {
+          orphanedEpics.push(e);
+        }
+      });
+
+      if (orphanedEpics.length > 0 || orphanedTasks.length > 0) {
+        initiatives.push({
+          hierarchy: 'Initiative',
+          title: 'Other active work',
+          assignee: '',
+          parent: '',
+          key: 'MISC',
+          status: 'In Progress',
+          children: [...orphanedEpics, ...orphanedTasks]
+        });
+      }
+
+      let countInit = 0;
+      let countEpic = 0;
+      let countTask = 0;
+
+      function matchesFilter(item) {
+        const matchesAssignee = !selectedAssignee || item.assignee === selectedAssignee;
+        const matchesSearch = !search || item.title.toLowerCase().includes(search) || item.key.toLowerCase().includes(search);
+        return matchesAssignee && matchesSearch;
+      }
+
+      const filteredTree = [];
+
+      initiatives.forEach(init => {
+        if (hideDone && isStatusDone(init.status)) {
+          return;
+        }
+
+        const validEpics = [];
+        let totalTasksUnderInit = 0;
+
+        init.children.forEach(child => {
+          if (child.hierarchy.toLowerCase() === 'epic') {
+            if (hideDone && isStatusDone(child.status)) {
+              return;
+            }
+
+            const validTasks = child.children.filter(task => {
+              if (hideDone && isStatusDone(task.status)) return false;
+              return matchesFilter(task);
+            });
+
+            // If hiding epics without tasks, skip epic when validTasks is 0
+            if (hideEmptyEpics && validTasks.length === 0) {
+              return;
+            }
+
+            const epicSelfMatches = matchesFilter(child);
+            if (epicSelfMatches || validTasks.length > 0 || (!selectedAssignee && !search && !hideEmptyEpics)) {
+              validEpics.push({
+                ...child,
+                children: validTasks
+              });
+              countEpic++;
+              countTask += validTasks.length;
+              totalTasksUnderInit += validTasks.length;
+            }
+          } else {
+            // Child is a direct task under initiative
+            if (hideDone && isStatusDone(child.status)) return;
+            if (matchesFilter(child) || (!selectedAssignee && !search)) {
+              validEpics.push(child);
+              countTask++;
+              totalTasksUnderInit += 1;
+            }
+          }
+        });
+
+        // Hide initiative if it has no tasks beneath it and the toggle is active
+        if (hideEmptyInit && totalTasksUnderInit === 0) {
+          return;
+        }
+
+        const initMatches = matchesFilter(init);
+        if (initMatches || validEpics.length > 0 || (!selectedAssignee && !search && !hideEmptyInit)) {
+          filteredTree.push({
+            ...init,
+            children: validEpics,
+            totalTasks: totalTasksUnderInit
+          });
+          countInit++;
+        }
+      });
+
+      document.getElementById('statsBar').textContent = `${countInit} Initiatives - ${countEpic} Epics - ${countTask} Tasks` + (loadedInfo ? ` · ${loadedInfo}` : '');
+
+      board.innerHTML = '';
+      if (filteredTree.length === 0) {
+        board.innerHTML = '<div class="empty-state">No matching items found with the current filters.</div>';
+        return;
+      }
+
+      filteredTree.forEach(init => {
+        const initCard = document.createElement('div');
+        initCard.className = `initiative-card ${isOpen(init.key) ? 'open' : ''}`;
+
+        initCard.innerHTML = `
+          <div class="row-header" data-key="${init.key}">
+            <span class="toggle-icon">▸</span>
+            <span class="type-tag type-initiative">Initiative</span>
+            <span class="issue-key">
+              ${init.key !== 'MISC' ? `<a href="${jiraBaseUrl}${init.key}" target="_blank" onclick="event.stopPropagation()">${init.key}</a>` : ''}
+            </span>
+            <span class="issue-title">${init.title}</span>
+            <span class="counter-badge">${init.totalTasks} task${init.totalTasks === 1 ? '' : 's'}</span>
+            ${init.assignee ? `<span class="assignee">${init.assignee}</span>` : ''}
+            <span class="status-badge ${getStatusClass(init.status)}">${init.status}</span>
+          </div>
+          <div class="children-container"></div>
+        `;
+
+        const container = initCard.querySelector('.children-container');
+
+        init.children.forEach(epic => {
+          if (epic.hierarchy.toLowerCase() === 'epic') {
+            const epicBlock = document.createElement('div');
+            epicBlock.className = `epic-block ${isOpen(epic.key) ? 'open' : ''}`;
+
+            epicBlock.innerHTML = `
+              <div class="row-header" data-key="${epic.key}">
+                <span class="toggle-icon">▸</span>
+                <span class="type-tag type-epic">Epic</span>
+                <span class="issue-key">
+                  <a href="${jiraBaseUrl}${epic.key}" target="_blank" onclick="event.stopPropagation()">${epic.key}</a>
+                </span>
+                <span class="issue-title">${epic.title}</span>
+                <span class="counter-badge">${epic.children.length} task${epic.children.length === 1 ? '' : 's'}</span>
+                ${epic.assignee ? `<span class="assignee">${epic.assignee}</span>` : ''}
+                <span class="status-badge ${getStatusClass(epic.status)}">${epic.status}</span>
+              </div>
+              <div class="children-container">
+                <div class="task-list"></div>
+              </div>
+            `;
+
+            const taskList = epicBlock.querySelector('.task-list');
+
+            if (epic.children && epic.children.length > 0) {
+              epic.children.forEach(task => {
+                const typeClass = task.hierarchy.toLowerCase() === 'bug' ? 'type-bug' : (task.hierarchy.toLowerCase() === 'sub-task' ? 'type-sub-task' : 'type-task');
+                const row = document.createElement('div');
+                row.className = 'task-row';
+                row.innerHTML = `
+                  <span class="type-tag ${typeClass}">${task.hierarchy}</span>
+                  <span class="issue-key">
+                    <a href="${jiraBaseUrl}${task.key}" target="_blank">${task.key}</a>
+                  </span>
+                  <span class="issue-title">${task.title}</span>
+                  ${task.assignee ? `<span class="assignee">${task.assignee}</span>` : ''}
+                  <span class="status-badge ${getStatusClass(task.status)}">${task.status}</span>
+                `;
+                taskList.appendChild(row);
+              });
+            } else {
+              taskList.innerHTML = '<div style="font-size:12px; color:var(--text-muted); padding: 4px;">No child tasks</div>';
+            }
+
+            container.appendChild(epicBlock);
+          } else {
+            const row = document.createElement('div');
+            row.className = 'task-row';
+            row.style.margin = '4px 0';
+            row.innerHTML = `
+              <span class="type-tag type-task">${epic.hierarchy}</span>
+              <span class="issue-key">
+                <a href="${jiraBaseUrl}${epic.key}" target="_blank">${epic.key}</a>
+              </span>
+              <span class="issue-title">${epic.title}</span>
+              ${epic.assignee ? `<span class="assignee">${epic.assignee}</span>` : ''}
+              <span class="status-badge ${getStatusClass(epic.status)}">${epic.status}</span>
+            `;
+            container.appendChild(row);
+          }
+        });
+
+        board.appendChild(initCard);
+      });
+    }
+
+    document.getElementById('csvFileInput').addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        loadDataFromCSV(evt.target.result);
+        saveCSV(evt.target.result, file.name);
+        showSavedInfo();
+      };
+      reader.readAsText(file);
+      e.target.value = ''; // allow re-selecting the same file name
+    });
+
+    // --- Remember the last loaded CSV in this browser only (localStorage) ---
+    const STORE_KEY = 'jiraStandup.lastCsv';
+
+    function saveCSV(text, name) {
+      try {
+        localStorage.setItem(STORE_KEY, JSON.stringify({ text, name, savedAt: new Date().toISOString() }));
+      } catch (err) {
+        console.warn('Could not save CSV in browser storage:', err);
+      }
+    }
+
+    function readSaved() {
+      try {
+        const raw = localStorage.getItem(STORE_KEY);
+        return raw ? JSON.parse(raw) : null;
+      } catch (err) {
+        return null;
+      }
+    }
+
+    function showSavedInfo() {
+      const saved = readSaved();
+      if (!saved) return;
+      const when = new Date(saved.savedAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' });
+      loadedInfo = `${saved.name} (loaded ${when})`;
+      renderBoard();
+    }
+
+    document.getElementById('clearSavedBtn').addEventListener('click', function() {
+      try { localStorage.removeItem(STORE_KEY); } catch (err) {}
+      rawItems = [];
+      loadedInfo = '';
+      document.getElementById('assigneeFilter').innerHTML = '<option value="">All team members</option>';
+      document.getElementById('board').innerHTML =
+        '<div class="empty-state">Saved data cleared. Click "Load CSV export" to load a new file.</div>';
+      document.getElementById('statsBar').textContent = 'No file loaded';
+    });
+
+    // Restore view settings on page load
+    (function restoreView() {
+      const v = savedView;
+      const setChk = (id, val) => { if (typeof val === 'boolean') document.getElementById(id).checked = val; };
+      setChk('hideEmptyInitToggle', v.hideEmptyInit);
+      setChk('hideEmptyEpicsToggle', v.hideEmptyEpics);
+      setChk('hideDoneToggle', v.hideDone);
+      if (typeof v.search === 'string') document.getElementById('searchFilter').value = v.search;
+      allExpanded = !!v.allExpanded;
+      openState = (v.openState && typeof v.openState === 'object') ? v.openState : {};
+      updateToggleAllLabel();
+      if (typeof v.zoom === 'number') {
+        zoom = Math.max(0.7, Math.min(2.0, v.zoom));
+        document.getElementById('board').style.transform = `scale(${zoom})`;
+        document.getElementById('zoomLevel').textContent = `${Math.round(zoom * 100)}%`;
+      }
+    })();
+
+    // Restore data on page load
+    (function restoreSaved() {
+      const saved = readSaved();
+      if (saved && saved.text) {
+        loadDataFromCSV(saved.text);
+        showSavedInfo();
+      }
+    })();
+
+    const onViewChange = () => { saveView(); renderBoard(); };
+    document.getElementById('hideEmptyInitToggle').addEventListener('change', onViewChange);
+    document.getElementById('hideEmptyEpicsToggle').addEventListener('change', onViewChange);
+    document.getElementById('hideDoneToggle').addEventListener('change', onViewChange);
+    document.getElementById('assigneeFilter').addEventListener('change', onViewChange);
+    document.getElementById('searchFilter').addEventListener('input', onViewChange);
+
+    // Open/close a single initiative or epic and remember the choice
+    document.getElementById('board').addEventListener('click', function(e) {
+      if (e.target.closest('a')) return; // Jira links shouldn't toggle
+      const header = e.target.closest('.row-header[data-key]');
+      if (!header) return;
+      const card = header.parentElement;
+      const nowOpen = card.classList.toggle('open');
+      openState[header.dataset.key] = nowOpen;
+      saveView();
+    });
+
+    function updateToggleAllLabel() {
+      document.getElementById('toggleAllBtn').textContent = allExpanded ? 'Collapse all' : 'Expand all';
+    }
+
+    document.getElementById('toggleAllBtn').addEventListener('click', function() {
+      allExpanded = !allExpanded;
+      openState = {}; // "Expand/Collapse all" overrides individual choices
+      updateToggleAllLabel();
+      document.querySelectorAll('.initiative-card, .epic-block').forEach(el => {
+        el.classList.toggle('open', allExpanded);
+      });
+      saveView();
+    });
+
+    function setZoom(newZoom) {
+      zoom = Math.max(0.7, Math.min(2.0, newZoom));
+      document.getElementById('board').style.transform = `scale(${zoom})`;
+      document.getElementById('zoomLevel').textContent = `${Math.round(zoom * 100)}%`;
+      saveView();
+    }
+
+    document.getElementById('zoomInBtn').addEventListener('click', () => setZoom(zoom + 0.1));
+    document.getElementById('zoomOutBtn').addEventListener('click', () => setZoom(zoom - 0.1));
+    document.getElementById('zoomResetBtn').addEventListener('click', () => setZoom(1.0));
+  </script>
+</body>
+</html>

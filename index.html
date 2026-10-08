@@ -1,842 +1,1410 @@
 <!DOCTYPE html>
-<html lang="en-GB">
+<html lang="en">
 <head>
-  <meta charset="utf-8">
-  <title>Jira standup view</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jira standup view - Research Analytics</title>
   <style>
     :root {
-      --bg: #f8fafc;
+      --bg-page: #f4f6fa;
       --card-bg: #ffffff;
-      --border: #e2e8f0;
-      --text: #0f172a;
+      --border-color: #e2e8f0;
+      --border-hover: #cbd5e1;
+      --text-main: #0f172a;
       --text-muted: #64748b;
-      --primary: #0284c7;
-      --primary-hover: #0369a1;
-      --badge-done: #dcfce7;
-      --badge-done-text: #166534;
-      --badge-progress: #dbeafe;
-      --badge-progress-text: #1e40af;
-      --badge-todo: #f1f5f9;
-      --badge-todo-text: #475569;
-      --badge-inbox: #fef3c7;
-      --badge-inbox-text: #92400e;
+      --text-desc: #334155;
+      --primary: #0052cc;
+      --primary-hover: #0747a6;
+      --tree-line: #cbd5e1;
+
+      /* Level accent border colors */
+      --accent-initiative: #6366f1;
+      --accent-epic: #a21caf;
+      --accent-task: #0284c7;
+      --accent-bug: #dc2626;
+      --accent-subtask: #64748b;
+
+      /* Status colors */
+      --status-inbox-bg: #fef3c7;
+      --status-inbox-text: #92400e;
+      --status-todo-bg: #f1f5f9;
+      --status-todo-text: #475569;
+      --status-progress-bg: #dbeafe;
+      --status-progress-text: #1d4ed8;
+      --status-done-bg: #dcfce7;
+      --status-done-text: #166534;
+
+      /* Badge type pill colors */
+      --type-initiative-bg: #ede9fe;
+      --type-initiative-text: #4338ca;
+      --type-epic-bg: #fdf2f8;
+      --type-epic-text: #9d174d;
+      --type-task-bg: #f0f9ff;
+      --type-task-text: #0369a1;
+      --type-bug-bg: #fef2f2;
+      --type-bug-text: #b91c1c;
+      --type-subtask-bg: #f8fafc;
+      --type-subtask-text: #475569;
     }
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      line-height: 1.5;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+      background-color: var(--bg-page);
+      color: var(--text-main);
       padding: 24px;
+      line-height: 1.45;
     }
+
+    .container { max-width: 1440px; margin: 0 auto; }
 
     header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    header h1 {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .focus-banner {
+      display: none;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      color: #1e40af;
+      padding: 10px 16px;
+      border-radius: 6px;
+      margin-bottom: 16px;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 13.5px;
+      font-weight: 500;
+    }
+    .focus-banner.active { display: flex; }
+
+    .toolbar-card {
       background: var(--card-bg);
-      padding: 16px 20px;
-      border: 1px solid var(--border);
+      border: 1px solid var(--border-color);
       border-radius: 8px;
+      padding: 16px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
       margin-bottom: 20px;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
     }
 
-    h1 {
-      font-size: 20px;
-      font-weight: 600;
-      margin-bottom: 12px;
-      color: #0f172a;
-    }
-
-    .toolbar {
+    .toolbar-row {
       display: flex;
       flex-wrap: wrap;
-      gap: 12px;
       align-items: center;
+      gap: 14px;
+      justify-content: space-between;
     }
 
-    .control-group {
+    .toolbar-group {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .btn {
+      appearance: none;
+      border: none;
+      border-radius: 5px;
+      padding: 7px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      text-decoration: none;
+      user-select: none;
+      transition: all 0.15s ease;
+    }
+
+    .btn-primary { background-color: var(--primary); color: #ffffff; }
+    .btn-primary:hover { background-color: var(--primary-hover); }
+
+    .btn-secondary {
+      background-color: #f1f5f9;
+      color: #334155;
+      border: 1px solid var(--border-color);
+    }
+    .btn-secondary:hover { background-color: #e2e8f0; }
+
+    .btn-focus {
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
+      color: #475569;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .btn-focus:hover {
+      background: #e0e7ff;
+      border-color: #a5b4fc;
+      color: #3730a3;
+    }
+
+    .btn-focus.is-active {
+      background: #4338ca;
+      border-color: #4338ca;
+      color: #ffffff;
+    }
+    .btn-focus.is-active:hover {
+      background: #3730a3;
+    }
+
+    label.checkbox-label {
+      font-size: 13px;
+      color: #334155;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    label.checkbox-label input[type="checkbox"] {
+      cursor: pointer;
+      accent-color: var(--primary);
+    }
+
+    .select-wrapper {
       display: inline-flex;
       align-items: center;
       gap: 6px;
       font-size: 13px;
-      user-select: none;
-      cursor: pointer;
+      color: #475569;
     }
 
-    input[type="text"], select {
+    select {
+      border: 1px solid var(--border-color);
+      background-color: #ffffff;
       padding: 6px 10px;
-      border: 1px solid var(--border);
-      border-radius: 6px;
+      border-radius: 5px;
       font-size: 13px;
-      background: #fff;
+      color: var(--text-main);
+      outline: none;
+      cursor: pointer;
     }
 
-    button {
+    .search-input {
+      border: 1px solid var(--border-color);
+      border-radius: 5px;
       padding: 6px 12px;
-      background: #fff;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      cursor: pointer;
       font-size: 13px;
-      color: var(--text);
-      transition: background 0.15s ease;
+      width: 250px;
+      outline: none;
     }
+    .search-input:focus { border-color: var(--primary); }
 
-    button:hover {
+    .zoom-controls { display: inline-flex; align-items: center; gap: 4px; }
+    .zoom-controls button {
       background: #f1f5f9;
-    }
-
-    button.primary {
-      background: var(--primary);
-      color: #fff;
-      border-color: var(--primary);
-    }
-
-    button.primary:hover {
-      background: var(--primary-hover);
-    }
-
-    .file-btn {
-      position: relative;
-      overflow: hidden;
-      display: inline-block;
-    }
-
-    .file-btn input[type="file"] {
-      position: absolute;
-      left: 0;
-      top: 0;
-      opacity: 0;
+      border: 1px solid var(--border-color);
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 12px;
       cursor: pointer;
-      width: 100%;
-      height: 100%;
     }
-
-    .stats {
-      margin-left: auto;
-      font-size: 13px;
+    .zoom-controls span {
+      font-size: 12px;
+      min-width: 44px;
+      text-align: center;
       color: var(--text-muted);
     }
 
-    #board {
+    .stats-badge {
+      font-size: 13px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    #tree-container {
       transform-origin: top left;
-      transition: transform 0.15s ease;
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
+      transition: filter 0.2s ease, opacity 0.2s ease;
     }
 
-    .initiative-card {
-      background: var(--card-bg);
-      border: 1px solid var(--border);
-      border-radius: 8px;
+    .node {
+      margin-bottom: 12px;
+      transition: opacity 0.25s ease, filter 0.25s ease;
+    }
+
+    .node-card {
+      border-radius: 6px;
+      transition: all 0.2s ease;
       overflow: hidden;
-      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
     }
 
-    .row-header {
+    /* Level 1: Initiative container styling */
+    .node-initiative > .node-card {
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
+      border-left: 5px solid var(--accent-initiative);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    }
+    .node-initiative > .node-card .issue-summary {
+      font-size: 14.5px;
+      font-weight: 700;
+      color: #1e1b4b;
+    }
+
+    /* Level 2: Epic card styling */
+    .node-epic > .node-card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-left: 4px solid var(--accent-epic);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+    }
+    .node-epic > .node-card:hover {
+      border-color: #cbd5e1;
+      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.06);
+    }
+    .node-epic > .node-card .issue-summary {
+      font-size: 14px;
+      font-weight: 600;
+      color: #0f172a;
+    }
+
+    /* Level 3: Task & Bug styling */
+    .node-task > .node-card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-left: 3px solid var(--accent-task);
+    }
+    .node-bug > .node-card {
+      background: #fffafa;
+      border: 1px solid #fecaca;
+      border-left: 3px solid var(--accent-bug);
+    }
+    .node-task > .node-card .issue-summary,
+    .node-bug > .node-card .issue-summary {
+      font-size: 13.5px;
+      font-weight: 500;
+      color: #1e293b;
+    }
+
+    /* Level 4: Sub-task styling */
+    .node-sub-task > .node-card {
+      background: #f8fafc;
+      border: 1px dashed #cbd5e1;
+      border-left: 3px solid var(--accent-subtask);
+    }
+
+    /* Focus Mode */
+    body.is-focused-mode .node.is-dimmed {
+      opacity: 0.22;
+      filter: grayscale(85%);
+      pointer-events: none;
+    }
+
+    body.is-focused-mode .node.is-focused-target > .node-card {
+      box-shadow: 0 0 0 3px rgba(162, 28, 175, 0.25), 0 8px 24px rgba(162, 28, 175, 0.15) !important;
+      border-color: var(--accent-epic) !important;
+      background: #ffffff !important;
+    }
+
+    body.is-focused-mode .node.is-focused-target {
+      opacity: 1 !important;
+      filter: none !important;
+    }
+
+    body.is-focused-mode .node.is-focused-ancestor > .node-card {
+      opacity: 0.65;
+      filter: grayscale(40%);
+    }
+
+    .node-header {
+      padding: 9px 14px;
       display: flex;
       align-items: center;
-      padding: 12px 16px;
-      cursor: pointer;
-      user-select: none;
-      background: #fafafa;
-      border-bottom: 1px solid transparent;
       gap: 10px;
     }
 
-    .row-header:hover {
-      background: #f1f5f9;
-    }
-
-    .initiative-card.open > .row-header {
-      border-bottom-color: var(--border);
-    }
-
-    .toggle-icon {
+    .chevron {
       width: 18px;
-      text-align: center;
-      font-weight: bold;
+      height: 18px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
       color: var(--text-muted);
+      border-radius: 3px;
+      user-select: none;
+      transition: transform 0.15s ease;
+      font-size: 10px;
       flex-shrink: 0;
     }
+    .chevron:hover { background-color: #e2e8f0; color: var(--text-main); }
+    .chevron.collapsed { transform: rotate(-90deg); }
+    .chevron.empty { visibility: hidden; cursor: default; }
 
-    .type-tag {
-      font-size: 11px;
-      font-weight: 600;
+    .badge-type {
+      font-size: 10px;
+      font-weight: 700;
       text-transform: uppercase;
-      padding: 2px 6px;
-      border-radius: 4px;
       letter-spacing: 0.5px;
+      padding: 2px 7px;
+      border-radius: 4px;
       flex-shrink: 0;
     }
+    .badge-type.initiative { background-color: var(--type-initiative-bg); color: var(--type-initiative-text); }
+    .badge-type.epic { background-color: var(--type-epic-bg); color: var(--type-epic-text); }
+    .badge-type.task { background-color: var(--type-task-bg); color: var(--type-task-text); }
+    .badge-type.bug { background-color: var(--type-bug-bg); color: var(--type-bug-text); }
+    .badge-type.sub-task { background-color: var(--type-subtask-bg); color: var(--type-subtask-text); }
 
-    .type-initiative { background: #e0e7ff; color: #3730a3; }
-    .type-epic { background: #fae8ff; color: #86198f; }
-    .type-task { background: #e0f2fe; color: #0369a1; }
-    .type-sub-task { background: #f1f5f9; color: #475569; }
-    .type-bug { background: #fee2e2; color: #991b1b; }
-
-    .issue-key {
-      font-family: monospace;
-      font-size: 13px;
-      flex-shrink: 0;
-    }
-
-    .issue-key a {
-      color: var(--primary);
-      text-decoration: none;
+    .issue-key-link {
       font-weight: 600;
-    }
-
-    .issue-key a:hover {
+      font-size: 13px;
+      color: var(--primary);
       text-decoration: underline;
-    }
-
-    .issue-title {
-      font-size: 14px;
-      flex-grow: 1;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .counter-badge {
-      font-size: 11px;
-      color: var(--text-muted);
-      background: #e2e8f0;
-      padding: 2px 6px;
-      border-radius: 10px;
-      font-weight: 500;
+      text-underline-offset: 2px;
       flex-shrink: 0;
     }
+    .issue-key-link:hover { color: var(--primary-hover); }
 
-    .assignee {
-      font-size: 12px;
-      color: var(--text-muted);
+    .issue-summary {
+      flex-grow: 1;
+      cursor: pointer;
+    }
+
+    .labels-wrapper { display: inline-flex; gap: 4px; flex-wrap: wrap; }
+    .label-badge {
+      font-size: 11px;
+      font-weight: 500;
       background: #f1f5f9;
+      color: #475569;
+      border: 1px solid #cbd5e1;
+      border-radius: 3px;
+      padding: 1px 6px;
+      white-space: nowrap;
+    }
+
+    .child-count-pill {
+      font-size: 11px;
+      font-weight: 500;
+      color: #475569;
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
       padding: 2px 8px;
       border-radius: 12px;
-      flex-shrink: 0;
+      white-space: nowrap;
     }
 
-    .status-badge {
+    .assignee-pill {
       font-size: 12px;
+      color: #475569;
+      background: #f8fafc;
+      border: 1px solid var(--border-color);
       padding: 2px 8px;
       border-radius: 4px;
-      flex-shrink: 0;
-      font-weight: 500;
+      white-space: nowrap;
     }
 
-    .status-inbox { background: var(--badge-inbox); color: var(--badge-inbox-text); }
-    .status-todo { background: var(--badge-todo); color: var(--badge-todo-text); }
-    .status-progress { background: var(--badge-progress); color: var(--badge-progress-text); }
-    .status-done { background: var(--badge-done); color: var(--badge-done-text); }
-
-    .children-container {
-      display: none;
-      padding: 8px 16px 12px 28px;
+    .status-pill {
+      font-size: 11.5px;
+      font-weight: 600;
+      padding: 3px 9px;
+      border-radius: 4px;
+      white-space: nowrap;
     }
+    .status-inbox { background-color: var(--status-inbox-bg); color: var(--status-inbox-text); }
+    .status-todo { background-color: var(--status-todo-bg); color: var(--status-todo-text); }
+    .status-in-progress { background-color: var(--status-progress-bg); color: var(--status-progress-text); }
+    .status-done { background-color: var(--status-done-bg); color: var(--status-done-text); }
 
-    .open > .children-container {
+    .node-description-container {
+      padding: 0 14px 12px 42px;
+      color: var(--text-desc);
+      font-size: 13px;
+      line-height: 1.55;
       display: block;
     }
+    .node-description-container.collapsed-desc { display: none; }
 
-    .epic-block {
-      border-left: 2px solid #cbd5e1;
-      margin: 8px 0;
-      background: #ffffff;
+    .node-desc-box {
+      background: #fafbfc;
+      border: 1px solid #edf2f7;
+      border-radius: 5px;
+      padding: 10px 14px;
+      word-break: break-word;
+    }
+    .node-desc-box a {
+      color: var(--primary);
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+    .node-desc-box p { margin-bottom: 6px; }
+    .node-desc-box ul, .node-desc-box ol { margin-left: 20px; margin-bottom: 6px; }
+    .node-desc-box .desc-empty { color: #94a3b8; font-style: italic; font-size: 12px; }
+
+    .onenote-badge-link {
+      display: inline-block;
+      margin-bottom: 6px;
+      font-weight: 600;
     }
 
-    .epic-block > .row-header {
-      background: #ffffff;
-      padding: 8px 12px;
-    }
-
-    .epic-block > .row-header:hover {
-      background: #f8fafc;
-    }
-
-    .task-list {
-      padding-left: 24px;
+    .children-container {
+      margin-left: 20px;
+      padding-left: 16px;
+      border-left: 2px solid var(--tree-line);
+      margin-top: 8px;
       display: flex;
       flex-direction: column;
-      gap: 4px;
-      margin-top: 4px;
+      gap: 8px;
     }
+    .children-container.is-hidden { display: none; }
 
-    .task-row {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 6px 10px;
-      border-radius: 4px;
-      background: #f8fafc;
-      border: 1px solid var(--border);
-    }
-
-    .task-row:hover {
-      background: #f1f5f9;
-    }
-
-    .empty-state {
-      padding: 40px;
+    .empty-placeholder {
       text-align: center;
-      color: var(--text-muted);
-      background: #fff;
-      border: 1px dashed var(--border);
+      padding: 50px 20px;
+      background: var(--card-bg);
+      border: 2px dashed var(--border-color);
       border-radius: 8px;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: border-color 0.15s, background-color 0.15s;
     }
+    .empty-placeholder:hover {
+      border-color: var(--primary);
+      background-color: #f0f7ff;
+    }
+    .empty-placeholder p { margin-bottom: 14px; font-size: 15px; }
+
+    .drop-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 82, 204, 0.08);
+      border: 3px dashed var(--primary);
+      z-index: 9999;
+      pointer-events: none;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--primary);
+    }
+    .drop-overlay.active { display: flex; }
   </style>
 </head>
 <body>
 
+<div id="dropOverlay" class="drop-overlay">Drop one or more Jira XML exports here</div>
+
+<div class="container">
   <header>
     <h1>Jira standup view - Research Analytics</h1>
-    <div class="toolbar">
-      <div class="file-btn">
-        <button class="primary">Load CSV export</button>
-        <input type="file" id="csvFileInput" accept=".csv">
-      </div>
-
-      <button id="clearSavedBtn" title="Forget the CSV stored in this browser">Clear saved data</button>
-
-      <button id="toggleAllBtn">Expand all</button>
-
-      <label class="control-group">
-        <input type="checkbox" id="hideEmptyInitToggle" checked>
-        Hide initiatives without tasks
-      </label>
-
-      <label class="control-group">
-        <input type="checkbox" id="hideEmptyEpicsToggle" checked>
-        Hide epics without tasks
-      </label>
-
-      <label class="control-group">
-        <input type="checkbox" id="hideDoneToggle" checked>
-        Hide completed branches (cascading)
-      </label>
-
-      <div class="control-group">
-        <label for="assigneeFilter">Assignee:</label>
-        <select id="assigneeFilter">
-          <option value="">All team members</option>
-        </select>
-      </div>
-
-      <input type="text" id="searchFilter" placeholder="Filter by title or key..." style="min-width: 180px;">
-
-      <div class="control-group" style="margin-left: 8px;">
-        <button id="zoomOutBtn">-</button>
-        <span id="zoomLevel">100%</span>
-        <button id="zoomInBtn">+</button>
-        <button id="zoomResetBtn">Reset</button>
-      </div>
-
-      <div class="stats" id="statsBar">No file loaded</div>
-    </div>
   </header>
 
-  <main id="board">
-    <div class="empty-state">
-      Please click "Load CSV export" and select your Jira Advanced Roadmaps export file to view items.
+  <div id="focusBanner" class="focus-banner">
+    <span id="focusBannerText">Focusing on Epic: <strong></strong></span>
+    <button class="btn btn-secondary" onclick="clearFocus()">Exit focus mode (Esc)</button>
+  </div>
+
+  <div class="toolbar-card">
+    <div class="toolbar-row">
+      <div class="toolbar-group">
+        <input type="file" id="fileInput" accept=".xml,text/xml" multiple style="display:none;" />
+        <button class="btn btn-primary" id="loadBtn">Load XML exports</button>
+        <button class="btn btn-secondary" id="collapseAllBtn">Collapse all</button>
+        <button class="btn btn-secondary" id="toggleAllDescBtn">Hide descriptions</button>
+        <button class="btn btn-secondary" id="clearSavedBtn" title="Forget the XML data stored in this browser">Clear saved data</button>
+      </div>
+
+      <div class="toolbar-group">
+        <label class="checkbox-label">
+          <input type="checkbox" id="hideInitWithoutTasks" checked>
+          Hide initiatives without tasks
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="hideEpicsWithoutTasks" checked>
+          Hide epics without tasks
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="hideCompleted" checked>
+          Hide completed branches (cascading)
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="onlyActiveIssues" checked>
+          Only active issues
+        </label>
+      </div>
+
+      <div class="toolbar-group">
+        <div class="select-wrapper">
+          <span>Status:</span>
+          <select id="statusSelect">
+            <option value="ALL">All statuses</option>
+          </select>
+        </div>
+
+        <div class="select-wrapper">
+          <span>Label:</span>
+          <select id="labelSelect">
+            <option value="ALL">All labels</option>
+          </select>
+        </div>
+
+        <div class="select-wrapper">
+          <span>Assignee:</span>
+          <select id="assigneeSelect">
+            <option value="ALL">All team members</option>
+          </select>
+        </div>
+      </div>
     </div>
-  </main>
 
-  <script>
-    let rawItems = [];
-    let zoom = 1.0;
-    let allExpanded = false;
-    let loadedInfo = '';
-    // Per-card open/closed choices (issue key -> true/false); overrides allExpanded
-    let openState = {};
+    <div class="toolbar-row">
+      <div class="toolbar-group">
+        <input type="text" class="search-input" id="searchInput" placeholder="Filter by title, key, or description..." />
+        <div class="zoom-controls">
+          <button id="zoomOutBtn">-</button>
+          <span id="zoomLevel">100%</span>
+          <button id="zoomInBtn">+</button>
+          <button id="zoomResetBtn">Reset</button>
+        </div>
+      </div>
 
-    // --- Remember view settings in this browser only (localStorage) ---
-    const VIEW_KEY = 'jiraStandup.viewSettings';
-    function readView() {
-      try { return JSON.parse(localStorage.getItem(VIEW_KEY)) || {}; } catch (err) { return {}; }
+      <div class="stats-badge" id="statsBadge">
+        0 Initiatives - 0 Epics - 0 Tasks
+      </div>
+    </div>
+  </div>
+
+  <div id="tree-container">
+    <div class="empty-placeholder" onclick="openFilePicker()">
+      <p><strong>Click anywhere in this box</strong> or click <strong>Load XML exports</strong> above to select your Jira XML file(s).</p>
+      <span style="font-size: 13px; color: var(--primary);">Supports multiple XML files with automatic deduplication across batches.</span>
+    </div>
+  </div>
+</div>
+
+<script>
+  let rawIssues = [];
+  let zoom = 100;
+  let descriptionsVisible = true;
+  let allCollapsed = false;
+  let focusedEpicKey = null;
+
+  // Display names are read from the loaded XML (no names are stored in this file)
+  let assigneeNameMap = {};
+  function rebuildNameMap() {
+    assigneeNameMap = {};
+    rawIssues.forEach(i => {
+      if (i.assignee && i.assigneeName) assigneeNameMap[i.assignee.toLowerCase()] = i.assigneeName;
+    });
+  }
+
+  // --- Remember data and view settings in this browser only (localStorage) ---
+  const DATA_KEY = 'jiraStandupXml.data';
+  const VIEW_KEY = 'jiraStandupXml.view';
+  let loadedInfo = '';
+  let nodeCollapsed = {};   // issue key -> true/false (overrides "Collapse all")
+  let nodeDescShown = {};   // issue key -> true/false (overrides "Hide descriptions")
+
+  function readJSON(key) {
+    try { return JSON.parse(localStorage.getItem(key)); } catch (e) { return null; }
+  }
+  function saveData(fileNames) {
+    const payload = { issues: rawIssues, files: fileNames, savedAt: new Date().toISOString() };
+    try {
+      localStorage.setItem(DATA_KEY, JSON.stringify(payload));
+      setLoadedInfo(payload);
+    } catch (e) {
+      console.warn('Could not save data in browser storage:', e);
+      loadedInfo = 'not remembered: too large for browser storage';
     }
-    let savedView = readView();
-    function saveView() {
-      const v = {
-        hideEmptyInit: document.getElementById('hideEmptyInitToggle').checked,
-        hideEmptyEpics: document.getElementById('hideEmptyEpicsToggle').checked,
-        hideDone: document.getElementById('hideDoneToggle').checked,
-        assignee: document.getElementById('assigneeFilter').value,
-        search: document.getElementById('searchFilter').value,
-        zoom, allExpanded, openState
-      };
-      savedView = v;
-      try { localStorage.setItem(VIEW_KEY, JSON.stringify(v)); } catch (err) {}
+  }
+  function setLoadedInfo(payload) {
+    if (!payload) { loadedInfo = ''; return; }
+    const when = new Date(payload.savedAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' });
+    loadedInfo = `${(payload.files || []).join(', ')} (loaded ${when})`;
+  }
+  function saveView() {
+    const v = {
+      hideInitWithoutTasks: document.getElementById('hideInitWithoutTasks').checked,
+      hideEpicsWithoutTasks: document.getElementById('hideEpicsWithoutTasks').checked,
+      hideCompleted: document.getElementById('hideCompleted').checked,
+      onlyActiveIssues: document.getElementById('onlyActiveIssues').checked,
+      status: document.getElementById('statusSelect').value,
+      label: document.getElementById('labelSelect').value,
+      assignee: document.getElementById('assigneeSelect').value,
+      search: document.getElementById('searchInput').value,
+      zoom, allCollapsed, descriptionsVisible, nodeCollapsed, nodeDescShown
+    };
+    try { localStorage.setItem(VIEW_KEY, JSON.stringify(v)); } catch (e) {}
+  }
+  function isCollapsed(key) {
+    return Object.prototype.hasOwnProperty.call(nodeCollapsed, key) ? nodeCollapsed[key] : allCollapsed;
+  }
+  function isDescShown(key) {
+    return Object.prototype.hasOwnProperty.call(nodeDescShown, key) ? nodeDescShown[key] : descriptionsVisible;
+  }
+
+  function getDisplayName(username) {
+    if (!username || username === '-1' || username.toLowerCase() === 'unassigned') return '';
+    return assigneeNameMap[username.toLowerCase()] || username;
+  }
+
+  function isDoneStatus(status) {
+    const s = String(status || '').trim().toLowerCase();
+    return s === 'done' || s === 'resolved' || s === 'closed';
+  }
+
+  function openFilePicker() {
+    const input = document.getElementById('fileInput');
+    input.value = '';
+    input.click();
+  }
+  document.getElementById('loadBtn').addEventListener('click', openFilePicker);
+
+  function cleanTargetUrl(url) {
+    if (!url) return '';
+    url = String(url).trim();
+    if (url.includes('safelinks.protection.outlook.com') && url.includes('url=')) {
+      try {
+        const match = url.match(/[?&]url=([^&]+)/);
+        if (match && match[1]) return decodeURIComponent(match[1]);
+      } catch (e) {}
     }
-    function isOpen(key) {
-      return Object.prototype.hasOwnProperty.call(openState, key) ? openState[key] : allExpanded;
+    return url;
+  }
+
+  function parseJiraXML(xmlText) {
+    const parser = new DOMParser();
+    const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
+    const parseError = xmlDoc.querySelector('parsererror');
+    if (parseError) throw new Error('XML structure invalid: ' + parseError.textContent);
+
+    const items = xmlDoc.querySelectorAll('item');
+    if (!items || items.length === 0) {
+      throw new Error('No Jira issues found in this XML file.');
     }
-    const jiraBaseUrl = "https://jira.tudelft.nl/browse/";
 
-    function parseCSV(text) {
-      const rows = [];
-      let currentRow = [];
-      let currentVal = '';
-      let insideQuotes = false;
+    const issues = [];
+    items.forEach(item => {
+      const keyEl = item.querySelector('key');
+      const key = keyEl ? keyEl.textContent.trim() : '';
+      if (!key) return;
 
-      for (let i = 0; i < text.length; i++) {
-        const char = text[i];
-        const nextChar = text[i + 1];
+      const id = keyEl ? (keyEl.getAttribute('id') || '') : '';
+      const summary = item.querySelector('summary') ? item.querySelector('summary').textContent.trim() : '';
+      const type = item.querySelector('type') ? item.querySelector('type').textContent.trim() : 'Task';
+      const status = item.querySelector('status') ? item.querySelector('status').textContent.trim() : 'To Do';
 
-        if (char === '"') {
-          if (insideQuotes && nextChar === '"') {
-            currentVal += '"';
-            i++;
-          } else {
-            insideQuotes = !insideQuotes;
+      const assigneeEl = item.querySelector('assignee');
+      const assigneeUser = assigneeEl ? (assigneeEl.getAttribute('username') || assigneeEl.textContent.trim()) : '';
+      const assignee = (assigneeUser === '-1' || assigneeUser.toLowerCase() === 'unassigned') ? '' : assigneeUser;
+      const assigneeName = (assignee && assigneeEl) ? assigneeEl.textContent.trim() : '';
+
+      const labels = [];
+      item.querySelectorAll('labels label').forEach(l => {
+        const txt = l.textContent.trim();
+        if (txt) labels.push(txt);
+      });
+
+      let parentLink = '';
+      let epicLink = '';
+      let inwardLink = '';
+      let parentId = '';
+
+      const parentEl = item.querySelector('parent');
+      if (parentEl) parentId = parentEl.getAttribute('id') || parentEl.textContent.trim();
+
+      item.querySelectorAll('customfield').forEach(cf => {
+        const cfName = cf.querySelector('customfieldname');
+        if (!cfName) return;
+        const nameText = cfName.textContent.trim();
+        const valEl = cf.querySelector('customfieldvalue');
+        const val = valEl ? valEl.textContent.trim() : '';
+
+        if (nameText === 'Epic Link') epicLink = val;
+        if (nameText === 'Parent Link') parentLink = val;
+      });
+
+      const parentChildInward = item.querySelector('issuelinktype[id="10500"] inwardlinks issuelink issuekey');
+      if (parentChildInward) inwardLink = parentChildInward.textContent.trim();
+
+      const descEl = item.querySelector('description');
+      const descHtml = descEl ? descEl.textContent.trim() : '';
+
+      issues.push({
+        key, id, parentId, summary, type, status, assignee, assigneeName,
+        parentLink, epicLink, inwardLink, labels,
+        description: descHtml
+      });
+    });
+
+    return issues;
+  }
+
+  function handleFilesSelected(fileList) {
+    if (!fileList || fileList.length === 0) return;
+
+    const files = Array.from(fileList);
+    document.getElementById('statsBadge').textContent = `Loading ${files.length} XML file${files.length > 1 ? 's' : ''}...`;
+
+    const readPromises = files.map(file => {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = e => resolve({ name: file.name, content: e.target.result });
+        reader.onerror = err => reject(new Error(`Failed to read ${file.name}`));
+        reader.readAsText(file, 'utf-8');
+      });
+    });
+
+    Promise.all(readPromises)
+      .then(results => {
+        const issueMap = new Map();
+
+        for (const fileData of results) {
+          if (fileData.content.includes('<title>Unauthorized (401)</title>')) {
+            alert(`File "${fileData.name}" is an unauthorized HTML page from Jira (401).`);
+            continue;
           }
-        } else if (char === ',' && !insideQuotes) {
-          currentRow.push(currentVal);
-          currentVal = '';
-        } else if ((char === '\r' || char === '\n') && !insideQuotes) {
-          if (char === '\r' && nextChar === '\n') i++;
-          currentRow.push(currentVal);
-          if (currentRow.length > 1 || currentRow[0] !== '') {
-            rows.push(currentRow);
-          }
-          currentRow = [];
-          currentVal = '';
-        } else {
-          currentVal += char;
-        }
-      }
-      if (currentVal || currentRow.length > 0) {
-        currentRow.push(currentVal);
-        rows.push(currentRow);
-      }
-      return rows;
-    }
 
-    function isStatusDone(status) {
-      if (!status) return false;
-      const s = status.trim().toLowerCase();
-      return s === 'done' || s === 'closed' || s === 'resolved';
-    }
-
-    function getStatusClass(status) {
-      if (!status) return 'status-todo';
-      const s = status.toLowerCase();
-      if (s.includes('in progress')) return 'status-progress';
-      if (s.includes('inbox')) return 'status-inbox';
-      if (isStatusDone(status)) return 'status-done';
-      return 'status-todo';
-    }
-
-    function loadDataFromCSV(csvText) {
-      const rows = parseCSV(csvText);
-      if (rows.length < 2) return;
-
-      const header = rows[0].map(h => h.trim());
-      const getCol = (name) => header.indexOf(name);
-
-      const idxHierarchy = getCol("Hierarchy");
-      const idxTitle = getCol("Title");
-      const idxAssignee = getCol("Assignee");
-      const idxParent = getCol("Parent");
-      const idxKey = getCol("Issue key");
-      const idxStatus = getCol("Issue status");
-
-      rawItems = [];
-      const assignees = new Set();
-
-      for (let i = 1; i < rows.length; i++) {
-        const r = rows[i];
-        if (!r[idxKey] && !r[idxTitle]) continue;
-
-        const assignee = r[idxAssignee] ? r[idxAssignee].trim() : '';
-        if (assignee) assignees.add(assignee);
-
-        rawItems.push({
-          hierarchy: r[idxHierarchy] ? r[idxHierarchy].trim() : 'Task',
-          title: r[idxTitle] ? r[idxTitle].trim() : '',
-          assignee: assignee,
-          parent: r[idxParent] ? r[idxParent].trim() : '',
-          key: r[idxKey] ? r[idxKey].trim() : '',
-          status: r[idxStatus] ? r[idxStatus].trim() : 'To Do',
-          children: []
-        });
-      }
-
-      const select = document.getElementById('assigneeFilter');
-      const prevAssignee = select.value || savedView.assignee || '';
-      select.innerHTML = '<option value="">All team members</option>';
-      Array.from(assignees).sort().forEach(person => {
-        const opt = document.createElement('option');
-        opt.value = person;
-        opt.textContent = person;
-        select.appendChild(opt);
-      });
-      if (assignees.has(prevAssignee)) select.value = prevAssignee;
-
-      renderBoard();
-    }
-
-    function renderBoard() {
-      const board = document.getElementById('board');
-      const hideDone = document.getElementById('hideDoneToggle').checked;
-      const hideEmptyInit = document.getElementById('hideEmptyInitToggle').checked;
-      const hideEmptyEpics = document.getElementById('hideEmptyEpicsToggle').checked;
-      const selectedAssignee = document.getElementById('assigneeFilter').value;
-      const search = document.getElementById('searchFilter').value.toLowerCase().trim();
-
-      if (rawItems.length === 0) {
-        board.innerHTML = '<div class="empty-state">No items loaded. Please select a CSV file.</div>';
-        document.getElementById('statsBar').textContent = '0 items';
-        return;
-      }
-
-      const initiatives = [];
-      const epics = [];
-      const tasks = [];
-
-      rawItems.forEach(item => {
-        item.children = [];
-        const h = item.hierarchy.toLowerCase();
-        if (h === 'initiative') {
-          initiatives.push(item);
-        } else if (h === 'epic') {
-          epics.push(item);
-        } else {
-          tasks.push(item);
-        }
-      });
-
-      const epicMap = new Map();
-      epics.forEach(e => epicMap.set(e.title, e));
-
-      const orphanedTasks = [];
-      tasks.forEach(t => {
-        if (t.parent && epicMap.has(t.parent)) {
-          epicMap.get(t.parent).children.push(t);
-        } else {
-          orphanedTasks.push(t);
-        }
-      });
-
-      const initMap = new Map();
-      initiatives.forEach(init => initMap.set(init.title, init));
-
-      const orphanedEpics = [];
-      epics.forEach(e => {
-        if (e.parent && initMap.has(e.parent)) {
-          initMap.get(e.parent).children.push(e);
-        } else {
-          orphanedEpics.push(e);
-        }
-      });
-
-      if (orphanedEpics.length > 0 || orphanedTasks.length > 0) {
-        initiatives.push({
-          hierarchy: 'Initiative',
-          title: 'Other active work',
-          assignee: '',
-          parent: '',
-          key: 'MISC',
-          status: 'In Progress',
-          children: [...orphanedEpics, ...orphanedTasks]
-        });
-      }
-
-      let countInit = 0;
-      let countEpic = 0;
-      let countTask = 0;
-
-      function matchesFilter(item) {
-        const matchesAssignee = !selectedAssignee || item.assignee === selectedAssignee;
-        const matchesSearch = !search || item.title.toLowerCase().includes(search) || item.key.toLowerCase().includes(search);
-        return matchesAssignee && matchesSearch;
-      }
-
-      const filteredTree = [];
-
-      initiatives.forEach(init => {
-        if (hideDone && isStatusDone(init.status)) {
-          return;
-        }
-
-        const validEpics = [];
-        let totalTasksUnderInit = 0;
-
-        init.children.forEach(child => {
-          if (child.hierarchy.toLowerCase() === 'epic') {
-            if (hideDone && isStatusDone(child.status)) {
-              return;
-            }
-
-            const validTasks = child.children.filter(task => {
-              if (hideDone && isStatusDone(task.status)) return false;
-              return matchesFilter(task);
-            });
-
-            // If hiding epics without tasks, skip epic when validTasks is 0
-            if (hideEmptyEpics && validTasks.length === 0) {
-              return;
-            }
-
-            const epicSelfMatches = matchesFilter(child);
-            if (epicSelfMatches || validTasks.length > 0 || (!selectedAssignee && !search && !hideEmptyEpics)) {
-              validEpics.push({
-                ...child,
-                children: validTasks
-              });
-              countEpic++;
-              countTask += validTasks.length;
-              totalTasksUnderInit += validTasks.length;
-            }
-          } else {
-            // Child is a direct task under initiative
-            if (hideDone && isStatusDone(child.status)) return;
-            if (matchesFilter(child) || (!selectedAssignee && !search)) {
-              validEpics.push(child);
-              countTask++;
-              totalTasksUnderInit += 1;
-            }
-          }
-        });
-
-        // Hide initiative if it has no tasks beneath it and the toggle is active
-        if (hideEmptyInit && totalTasksUnderInit === 0) {
-          return;
-        }
-
-        const initMatches = matchesFilter(init);
-        if (initMatches || validEpics.length > 0 || (!selectedAssignee && !search && !hideEmptyInit)) {
-          filteredTree.push({
-            ...init,
-            children: validEpics,
-            totalTasks: totalTasksUnderInit
+          const parsedBatch = parseJiraXML(fileData.content);
+          parsedBatch.forEach(issue => {
+            issueMap.set(issue.key, issue);
           });
-          countInit++;
         }
+
+        if (issueMap.size === 0) {
+          alert('No valid Jira issues found in the loaded XML file(s).');
+          document.getElementById('statsBadge').textContent = 'No issues found.';
+          return;
+        }
+
+        rawIssues = Array.from(issueMap.values());
+        rebuildNameMap();
+        saveData(results.map(r => r.name));
+        focusedEpicKey = null;
+        updateFocusVisuals();
+        populateDropdowns();
+        renderTree();
+      })
+      .catch(err => {
+        console.error(err);
+        alert('Error loading XML exports: ' + err.message);
+        document.getElementById('statsBadge').textContent = 'Error loading XML.';
       });
+  }
 
-      document.getElementById('statsBar').textContent = `${countInit} Initiatives - ${countEpic} Epics - ${countTask} Tasks` + (loadedInfo ? ` · ${loadedInfo}` : '');
+  function toggleFocus(epicKey, epicSummary) {
+    if (focusedEpicKey === epicKey) {
+      clearFocus();
+    } else {
+      focusedEpicKey = epicKey;
+      updateFocusVisuals(epicSummary);
 
-      board.innerHTML = '';
-      if (filteredTree.length === 0) {
-        board.innerHTML = '<div class="empty-state">No matching items found with the current filters.</div>';
-        return;
-      }
+      setTimeout(() => {
+        const targetNode = document.querySelector(`.node-epic[data-key="${epicKey}"]`);
+        if (targetNode) {
+          targetNode.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 50);
+    }
+  }
 
-      filteredTree.forEach(init => {
-        const initCard = document.createElement('div');
-        initCard.className = `initiative-card ${isOpen(init.key) ? 'open' : ''}`;
+  function clearFocus() {
+    focusedEpicKey = null;
+    updateFocusVisuals();
+  }
 
-        initCard.innerHTML = `
-          <div class="row-header" data-key="${init.key}">
-            <span class="toggle-icon">▸</span>
-            <span class="type-tag type-initiative">Initiative</span>
-            <span class="issue-key">
-              ${init.key !== 'MISC' ? `<a href="${jiraBaseUrl}${init.key}" target="_blank" onclick="event.stopPropagation()">${init.key}</a>` : ''}
-            </span>
-            <span class="issue-title">${init.title}</span>
-            <span class="counter-badge">${init.totalTasks} task${init.totalTasks === 1 ? '' : 's'}</span>
-            ${init.assignee ? `<span class="assignee">${init.assignee}</span>` : ''}
-            <span class="status-badge ${getStatusClass(init.status)}">${init.status}</span>
-          </div>
-          <div class="children-container"></div>
-        `;
+  function updateFocusVisuals(epicSummary) {
+    const banner = document.getElementById('focusBanner');
+    const textEl = document.getElementById('focusBannerText');
+    const body = document.body;
 
-        const container = initCard.querySelector('.children-container');
-
-        init.children.forEach(epic => {
-          if (epic.hierarchy.toLowerCase() === 'epic') {
-            const epicBlock = document.createElement('div');
-            epicBlock.className = `epic-block ${isOpen(epic.key) ? 'open' : ''}`;
-
-            epicBlock.innerHTML = `
-              <div class="row-header" data-key="${epic.key}">
-                <span class="toggle-icon">▸</span>
-                <span class="type-tag type-epic">Epic</span>
-                <span class="issue-key">
-                  <a href="${jiraBaseUrl}${epic.key}" target="_blank" onclick="event.stopPropagation()">${epic.key}</a>
-                </span>
-                <span class="issue-title">${epic.title}</span>
-                <span class="counter-badge">${epic.children.length} task${epic.children.length === 1 ? '' : 's'}</span>
-                ${epic.assignee ? `<span class="assignee">${epic.assignee}</span>` : ''}
-                <span class="status-badge ${getStatusClass(epic.status)}">${epic.status}</span>
-              </div>
-              <div class="children-container">
-                <div class="task-list"></div>
-              </div>
-            `;
-
-            const taskList = epicBlock.querySelector('.task-list');
-
-            if (epic.children && epic.children.length > 0) {
-              epic.children.forEach(task => {
-                const typeClass = task.hierarchy.toLowerCase() === 'bug' ? 'type-bug' : (task.hierarchy.toLowerCase() === 'sub-task' ? 'type-sub-task' : 'type-task');
-                const row = document.createElement('div');
-                row.className = 'task-row';
-                row.innerHTML = `
-                  <span class="type-tag ${typeClass}">${task.hierarchy}</span>
-                  <span class="issue-key">
-                    <a href="${jiraBaseUrl}${task.key}" target="_blank">${task.key}</a>
-                  </span>
-                  <span class="issue-title">${task.title}</span>
-                  ${task.assignee ? `<span class="assignee">${task.assignee}</span>` : ''}
-                  <span class="status-badge ${getStatusClass(task.status)}">${task.status}</span>
-                `;
-                taskList.appendChild(row);
-              });
-            } else {
-              taskList.innerHTML = '<div style="font-size:12px; color:var(--text-muted); padding: 4px;">No child tasks</div>';
-            }
-
-            container.appendChild(epicBlock);
-          } else {
-            const row = document.createElement('div');
-            row.className = 'task-row';
-            row.style.margin = '4px 0';
-            row.innerHTML = `
-              <span class="type-tag type-task">${epic.hierarchy}</span>
-              <span class="issue-key">
-                <a href="${jiraBaseUrl}${epic.key}" target="_blank">${epic.key}</a>
-              </span>
-              <span class="issue-title">${epic.title}</span>
-              ${epic.assignee ? `<span class="assignee">${epic.assignee}</span>` : ''}
-              <span class="status-badge ${getStatusClass(epic.status)}">${epic.status}</span>
-            `;
-            container.appendChild(row);
-          }
-        });
-
-        board.appendChild(initCard);
-      });
+    if (focusedEpicKey) {
+      body.classList.add('is-focused-mode');
+      banner.classList.add('active');
+      textEl.innerHTML = `Meeting focus: <strong>${focusedEpicKey}</strong> ${epicSummary ? '- ' + epicSummary : ''}`;
+    } else {
+      body.classList.remove('is-focused-mode');
+      banner.classList.remove('active');
     }
 
-    document.getElementById('csvFileInput').addEventListener('change', function(e) {
-      const file = e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = function(evt) {
-        loadDataFromCSV(evt.target.result);
-        saveCSV(evt.target.result, file.name);
-        showSavedInfo();
+    document.querySelectorAll('.node').forEach(node => {
+      node.classList.remove('is-dimmed', 'is-focused-target', 'is-focused-ancestor');
+      const key = node.getAttribute('data-key');
+
+      if (!focusedEpicKey) return;
+
+      if (key === focusedEpicKey) {
+        node.classList.add('is-focused-target');
+      } else if (node.closest(`.node-epic[data-key="${focusedEpicKey}"]`)) {
+        node.classList.add('is-focused-target');
+      } else if (node.querySelector(`.node-epic[data-key="${focusedEpicKey}"]`)) {
+        node.classList.add('is-focused-ancestor');
+      } else {
+        node.classList.add('is-dimmed');
+      }
+    });
+
+    document.querySelectorAll('.btn-focus').forEach(btn => {
+      const key = btn.getAttribute('data-epic-key');
+      if (focusedEpicKey && key === focusedEpicKey) {
+        btn.textContent = 'Unfocus';
+        btn.classList.add('is-active');
+      } else {
+        btn.textContent = 'Focus';
+        btn.classList.remove('is-active');
+      }
+    });
+  }
+
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && focusedEpicKey) {
+      clearFocus();
+    }
+  });
+
+  function populateDropdowns() {
+    const statusSelect = document.getElementById('statusSelect');
+    const currentStatus = statusSelect ? statusSelect.value : 'ALL';
+    const statuses = new Set();
+
+    const assigneeSelect = document.getElementById('assigneeSelect');
+    const currentAssignee = assigneeSelect ? assigneeSelect.value : 'ALL';
+    const assignees = new Set();
+
+    const labelSelect = document.getElementById('labelSelect');
+    const currentLabel = labelSelect ? labelSelect.value : 'ALL';
+    const labels = new Set();
+
+    rawIssues.forEach(item => {
+      if (item.status) statuses.add(item.status.trim());
+      if (item.assignee) assignees.add(item.assignee);
+      if (item.labels) item.labels.forEach(l => labels.add(l));
+    });
+
+    if (statusSelect) {
+      const sortedStatuses = Array.from(statuses).sort();
+      statusSelect.innerHTML = '<option value="ALL">All statuses</option>';
+      sortedStatuses.forEach(st => {
+        const opt = document.createElement('option');
+        opt.value = st;
+        opt.textContent = st;
+        statusSelect.appendChild(opt);
+      });
+      if (Array.from(statusSelect.options).some(o => o.value === currentStatus)) {
+        statusSelect.value = currentStatus;
+      }
+    }
+
+    const sortedAssignees = Array.from(assignees).sort((a, b) => getDisplayName(a).localeCompare(getDisplayName(b)));
+    if (assigneeSelect) {
+      assigneeSelect.innerHTML = '<option value="ALL">All team members</option>';
+      sortedAssignees.forEach(user => {
+        const opt = document.createElement('option');
+        opt.value = user;
+        opt.textContent = getDisplayName(user);
+        assigneeSelect.appendChild(opt);
+      });
+      if (Array.from(assigneeSelect.options).some(o => o.value === currentAssignee)) {
+        assigneeSelect.value = currentAssignee;
+      }
+    }
+
+    const sortedLabels = Array.from(labels).sort((a, b) => a.localeCompare(b));
+    if (labelSelect) {
+      labelSelect.innerHTML = '<option value="ALL">All labels</option>';
+      sortedLabels.forEach(lbl => {
+        const opt = document.createElement('option');
+        opt.value = lbl;
+        opt.textContent = lbl;
+        labelSelect.appendChild(opt);
+      });
+      if (Array.from(labelSelect.options).some(o => o.value === currentLabel)) {
+        labelSelect.value = currentLabel;
+      }
+    }
+  }
+
+  function sortHierarchical(items) {
+    if (!items || !Array.isArray(items)) return [];
+    return items.sort((a, b) => {
+      const labelA = (a.labels && a.labels.length > 0) ? String(a.labels[0]).toLowerCase() : 'zzz_unlabelled';
+      const labelB = (b.labels && b.labels.length > 0) ? String(b.labels[0]).toLowerCase() : 'zzz_unlabelled';
+      if (labelA !== labelB) return labelA.localeCompare(labelB);
+      return String(a.summary || '').localeCompare(String(b.summary || ''));
+    });
+  }
+
+  function buildHierarchy() {
+    const issueMap = new Map();
+    const idMap = new Map();
+
+    rawIssues.forEach(issue => {
+      const node = { ...issue, children: [] };
+      issueMap.set(issue.key, node);
+      if (issue.id) idMap.set(issue.id, node);
+    });
+
+    const initiatives = [];
+    const epics = [];
+    const tasks = [];
+    const subtasks = [];
+
+    issueMap.forEach(node => {
+      const type = (node.type || '').toLowerCase();
+      if (type === 'initiative') initiatives.push(node);
+      else if (type === 'epic') epics.push(node);
+      else if (type === 'sub-task') subtasks.push(node);
+      else tasks.push(node);
+    });
+
+    // 1. Subtasks -> Tasks
+    const unattachedSubtasks = [];
+    subtasks.forEach(st => {
+      let parent = null;
+      if (st.parentId && idMap.has(st.parentId)) parent = idMap.get(st.parentId);
+      else if (st.epicLink && issueMap.has(st.epicLink)) parent = issueMap.get(st.epicLink);
+      else if (st.inwardLink && issueMap.has(st.inwardLink)) parent = issueMap.get(st.inwardLink);
+
+      if (parent) parent.children.push(st);
+      else unattachedSubtasks.push(st);
+    });
+
+    // 2. Tasks -> Epics
+    const unattachedTasks = [];
+    tasks.concat(unattachedSubtasks).forEach(task => {
+      let epic = null;
+      if (task.epicLink && issueMap.has(task.epicLink)) epic = issueMap.get(task.epicLink);
+      else if (task.parentLink && issueMap.has(task.parentLink)) epic = issueMap.get(task.parentLink);
+      else if (task.parentId && idMap.has(task.parentId)) epic = idMap.get(task.parentId);
+      else if (task.inwardLink && issueMap.has(task.inwardLink)) epic = issueMap.get(task.inwardLink);
+
+      if (epic && (epic.type || '').toLowerCase() === 'epic') epic.children.push(task);
+      else unattachedTasks.push(task);
+    });
+
+    // 3. Epics -> Initiatives
+    const unattachedEpics = [];
+    epics.forEach(epic => {
+      let initiativeKey = epic.parentLink || epic.inwardLink;
+      let initiative = initiativeKey ? issueMap.get(initiativeKey) : null;
+      if (initiative && (initiative.type || '').toLowerCase() === 'initiative') initiative.children.push(epic);
+      else unattachedEpics.push(epic);
+    });
+
+    epics.forEach(epic => { epic.children = sortHierarchical(epic.children); });
+    initiatives.forEach(init => { init.children = sortHierarchical(init.children); });
+
+    if (unattachedTasks.length > 0 || unattachedEpics.length > 0) {
+      const fallbackInit = {
+        key: 'DIRECT',
+        summary: 'Direct & Standalone items',
+        type: 'Initiative',
+        status: 'Inbox',
+        assignee: '',
+        description: '',
+        labels: [],
+        children: []
       };
-      reader.readAsText(file);
-      e.target.value = ''; // allow re-selecting the same file name
+
+      if (unattachedEpics.length > 0) fallbackInit.children.push(...sortHierarchical(unattachedEpics));
+      if (unattachedTasks.length > 0) {
+        const fallbackEpic = {
+          key: 'STANDALONE',
+          summary: 'Standalone tasks',
+          type: 'Epic',
+          status: 'Inbox',
+          assignee: '',
+          description: '',
+          labels: [],
+          children: sortHierarchical(unattachedTasks)
+        };
+        fallbackInit.children.push(fallbackEpic);
+      }
+      initiatives.push(fallbackInit);
+    }
+
+    return sortHierarchical(initiatives);
+  }
+
+  function formatStatusClass(status) {
+    const s = String(status || '').trim().toLowerCase();
+    if (s.includes('in progress')) return 'status-in-progress';
+    if (s.includes('done') || s.includes('resolved') || s.includes('closed')) return 'status-done';
+    if (s.includes('inbox')) return 'status-inbox';
+    return 'status-todo';
+  }
+
+  function formatTypeClass(type) {
+    const t = (type || '').toLowerCase();
+    if (t.includes('initiative')) return 'initiative';
+    if (t.includes('epic')) return 'epic';
+    if (t.includes('sub-task')) return 'sub-task';
+    if (t.includes('bug')) return 'bug';
+    return 'task';
+  }
+
+  function formatDescriptionOutput(node) {
+    if (!node.description) return '<span class="desc-empty">No description</span>';
+    let html = node.description;
+
+    html = html.replace(
+      /<a\s+href="onenote:[^"]*"[^>]*>([\s\S]*?)<\/a>[\s\u00a0]*(?:\(<a\s+href="([^"]*Web\%20view[^"]*\vert{}[^"]*_layouts\/Doc\.aspx[^"]*)"[^>]*>Web view<\/a>\))?/gi,
+      (match, title, webView) => {
+        if (webView) {
+          return `<a href="${cleanTargetUrl(webView)}" target="_blank" rel="noopener noreferrer" class="onenote-badge-link" title="Open OneNote in browser">${title} (Web view)</a>`;
+        }
+        return title;
+      }
+    );
+    return html;
+  }
+
+  function matchesFilter(node, filters) {
+    const { assignee, selectedLabel, selectedStatus, query, onlyActive } = filters;
+    const isDone = isDoneStatus(node.status);
+    const nodeStatus = String(node.status || '').trim().toLowerCase();
+
+    // Specific Status dropdown selection
+    const isSpecificDoneSelection = isDoneStatus(selectedStatus);
+    const matchesStatus = (selectedStatus === 'ALL') || (nodeStatus === selectedStatus.toLowerCase());
+
+    // Strict Active Issue Filter
+    let matchesActive = true;
+    if (onlyActive) {
+      if (isSpecificDoneSelection) {
+        // User explicitly picked "Done" in dropdown while Active box is ticked -> allow Done
+        matchesActive = isDone;
+      } else {
+        // Default Active mode -> strictly exclude any Done/Resolved/Closed item
+        matchesActive = !isDone;
+      }
+    }
+
+    const matchesAssignee = (assignee === 'ALL') || (node.assignee === assignee);
+    const matchesLabel = (selectedLabel === 'ALL') || (node.labels && node.labels.includes(selectedLabel));
+    const qLower = query.toLowerCase();
+    const matchesQuery = !query ||
+      (node.key || '').toLowerCase().includes(qLower) ||
+      (node.summary || '').toLowerCase().includes(qLower) ||
+      (node.description && String(node.description).toLowerCase().includes(qLower));
+
+    return matchesStatus && matchesActive && matchesAssignee && matchesLabel && matchesQuery;
+  }
+
+  function isNodeBranchDone(node) {
+    const isSelfDone = isDoneStatus(node.status);
+    if (!node.children || node.children.length === 0) return isSelfDone;
+    return isSelfDone && node.children.every(isNodeBranchDone);
+  }
+
+  function countTotalTasks(node) {
+    let count = ['task', 'bug', 'sub-task'].includes((node.type || '').toLowerCase()) ? 1 : 0;
+    if (node.children) {
+      node.children.forEach(c => { count += countTotalTasks(c); });
+    }
+    return count;
+  }
+
+  function renderTree() {
+    const container = document.getElementById('tree-container');
+    if (rawIssues.length === 0) {
+      container.innerHTML = `
+        <div class="empty-placeholder" onclick="openFilePicker()">
+          <p><strong>Click anywhere in this box</strong> or click <strong>Load XML exports</strong> above to select your Jira XML file(s).</p>
+          <span style="font-size: 13px; color: var(--primary);">Supports multiple XML files with automatic deduplication across batches.</span>
+        </div>
+      `;
+      return;
+    }
+
+    const hideInitNoTasks = document.getElementById('hideInitWithoutTasks').checked;
+    const hideEpicsNoTasks = document.getElementById('hideEpicsWithoutTasks').checked;
+    const hideCompleted = document.getElementById('hideCompleted').checked;
+    const onlyActive = document.getElementById('onlyActiveIssues').checked;
+    const selectedStatus = document.getElementById('statusSelect') ? document.getElementById('statusSelect').value : 'ALL';
+    const selectedAssignee = document.getElementById('assigneeSelect') ? document.getElementById('assigneeSelect').value : 'ALL';
+    const selectedLabel = document.getElementById('labelSelect') ? document.getElementById('labelSelect').value : 'ALL';
+    const query = document.getElementById('searchInput').value.trim();
+
+    const isSpecificDoneSelection = isDoneStatus(selectedStatus);
+    const filters = { assignee: selectedAssignee, selectedLabel, selectedStatus, query, onlyActive };
+    const initiatives = buildHierarchy();
+
+    let renderedInits = 0;
+    let renderedEpics = 0;
+    let renderedTasks = 0;
+
+    function filterBranch(node) {
+      const type = (node.type || '').toLowerCase();
+      const isDone = isDoneStatus(node.status);
+
+      // Hide completed branch
+      if (hideCompleted && !isSpecificDoneSelection && isNodeBranchDone(node)) return null;
+
+      // Filter children first
+      const validChildren = [];
+      if (node.children) {
+        node.children.forEach(child => {
+          const filteredChild = filterBranch(child);
+          if (filteredChild) validChildren.push(filteredChild);
+        });
+      }
+
+      // Check self match
+      const selfMatch = matchesFilter(node, filters);
+      const hasMatchingChildren = validChildren.length > 0;
+
+      // Leaf tasks/bugs: must match directly
+      if (!node.children || node.children.length === 0) {
+        if (!selfMatch) return null;
+      } else {
+        // Container nodes (Initiatives / Epics):
+        // If "Only active issues" is ticked and this Epic itself is Done, do not show it unless explicitly filtering for Done
+        if (onlyActive && !isSpecificDoneSelection && isDone) {
+          return null;
+        }
+
+        // Must match either self or contain valid matching children
+        if (!selfMatch && !hasMatchingChildren) {
+          return null;
+        }
+      }
+
+      const totalTasks = countTotalTasks({ ...node, children: validChildren });
+      if (type === 'initiative' && hideInitNoTasks && totalTasks === 0) return null;
+      if (type === 'epic' && hideEpicsNoTasks && totalTasks === 0) return null;
+
+      return {
+        ...node,
+        children: sortHierarchical(validChildren),
+        taskCount: totalTasks
+      };
+    }
+
+    const filteredTree = [];
+    initiatives.forEach(init => {
+      const filtered = filterBranch(init);
+      if (filtered) filteredTree.push(filtered);
     });
 
-    // --- Remember the last loaded CSV in this browser only (localStorage) ---
-    const STORE_KEY = 'jiraStandup.lastCsv';
+    function createNodeHtml(node) {
+      const hasChildren = node.children && node.children.length > 0;
+      const typeLower = (node.type || '').toLowerCase();
 
-    function saveCSV(text, name) {
-      try {
-        localStorage.setItem(STORE_KEY, JSON.stringify({ text, name, savedAt: new Date().toISOString() }));
-      } catch (err) {
-        console.warn('Could not save CSV in browser storage:', err);
-      }
+      if (typeLower === 'initiative') renderedInits++;
+      else if (typeLower === 'epic') renderedEpics++;
+      else renderedTasks++;
+
+      const childCountLabel = hasChildren ? `${node.children.length} ${typeLower === 'initiative' ? 'epics' : 'tasks'}` : '';
+      const formattedDescription = formatDescriptionOutput(node);
+      const jiraUrl = `https://jira.tudelft.nl/browse/${encodeURIComponent(node.key)}`;
+      const escapedSummary = (node.summary || '').replace(/'/g, "\\'");
+
+      return `
+        <div class="node node-${typeLower}" data-key="${node.key}">
+          <div class="node-card">
+            <div class="node-header">
+              <span class="chevron ${hasChildren ? '' : 'empty'} ${hasChildren && isCollapsed(node.key) ? 'collapsed' : ''}" onclick="toggleCollapse(this)">&#9660;</span>
+              <span class="badge-type ${formatTypeClass(node.type)}">${node.type}</span>
+              <a href="${jiraUrl}" target="_blank" rel="noopener noreferrer" class="issue-key-link" title="Open ${node.key} in Jira">${node.key}</a>
+              <span class="issue-summary" onclick="toggleDetails('${node.key}')">${node.summary || '(No summary)'}</span>
+              
+              ${typeLower === 'epic' ? `
+                <button class="btn btn-focus" data-epic-key="${node.key}" onclick="toggleFocus('${node.key}', '${escapedSummary}')" title="Spotlight this epic and dim other items">Focus</button>
+              ` : ''}
+
+              ${(node.labels && node.labels.length > 0) ? `
+                <div class="labels-wrapper">
+                  ${node.labels.map(l => `<span class="label-badge">${l}</span>`).join('')}
+                </div>
+              ` : ''}
+
+              ${childCountLabel ? `<span class="child-count-pill">${childCountLabel}</span>` : ''}
+              ${node.assignee ? `<span class="assignee-pill">${getDisplayName(node.assignee)}</span>` : ''}
+              <span class="status-pill ${formatStatusClass(node.status)}">${node.status}</span>
+            </div>
+
+            <div class="node-description-container ${isDescShown(node.key) ? '' : 'collapsed-desc'}" id="desc-${node.key}">
+              <div class="node-desc-box">
+                ${formattedDescription}
+              </div>
+            </div>
+          </div>
+
+          ${hasChildren ? `
+            <div class="children-container ${isCollapsed(node.key) ? 'is-hidden' : ''}">
+              ${node.children.map(child => createNodeHtml(child)).join('')}
+            </div>
+          ` : ''}
+        </div>
+      `;
     }
 
-    function readSaved() {
-      try {
-        const raw = localStorage.getItem(STORE_KEY);
-        return raw ? JSON.parse(raw) : null;
-      } catch (err) {
-        return null;
-      }
+    if (filteredTree.length === 0) {
+      container.innerHTML = `<div class="empty-placeholder" style="cursor: default;"><p>No matching issues found for the selected filter criteria.</p></div>`;
+    } else {
+      container.innerHTML = sortHierarchical(filteredTree).map(init => createNodeHtml(init)).join('');
     }
 
-    function showSavedInfo() {
-      const saved = readSaved();
-      if (!saved) return;
-      const when = new Date(saved.savedAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' });
-      loadedInfo = `${saved.name} (loaded ${when})`;
-      renderBoard();
+    document.getElementById('statsBadge').textContent = `${renderedInits} Initiatives - ${renderedEpics} Epics - ${renderedTasks} Tasks` + (loadedInfo ? ` · ${loadedInfo}` : '');
+
+    if (focusedEpicKey) {
+      updateFocusVisuals();
     }
+  }
 
-    document.getElementById('clearSavedBtn').addEventListener('click', function() {
-      try { localStorage.removeItem(STORE_KEY); } catch (err) {}
-      rawItems = [];
-      loadedInfo = '';
-      document.getElementById('assigneeFilter').innerHTML = '<option value="">All team members</option>';
-      document.getElementById('board').innerHTML =
-        '<div class="empty-state">Saved data cleared. Click "Load CSV export" to load a new file.</div>';
-      document.getElementById('statsBar').textContent = 'No file loaded';
-    });
+  function toggleCollapse(btn) {
+    const parentNode = btn.closest('.node');
+    const childContainer = parentNode.querySelector(':scope > .children-container');
+    if (!childContainer) return;
+    const isHidden = childContainer.classList.toggle('is-hidden');
+    btn.classList.toggle('collapsed', isHidden);
+    nodeCollapsed[parentNode.getAttribute('data-key')] = isHidden;
+    saveView();
+  }
 
-    // Restore view settings on page load
-    (function restoreView() {
-      const v = savedView;
-      const setChk = (id, val) => { if (typeof val === 'boolean') document.getElementById(id).checked = val; };
-      setChk('hideEmptyInitToggle', v.hideEmptyInit);
-      setChk('hideEmptyEpicsToggle', v.hideEmptyEpics);
-      setChk('hideDoneToggle', v.hideDone);
-      if (typeof v.search === 'string') document.getElementById('searchFilter').value = v.search;
-      allExpanded = !!v.allExpanded;
-      openState = (v.openState && typeof v.openState === 'object') ? v.openState : {};
-      updateToggleAllLabel();
-      if (typeof v.zoom === 'number') {
-        zoom = Math.max(0.7, Math.min(2.0, v.zoom));
-        document.getElementById('board').style.transform = `scale(${zoom})`;
-        document.getElementById('zoomLevel').textContent = `${Math.round(zoom * 100)}%`;
-      }
-    })();
-
-    // Restore data on page load
-    (function restoreSaved() {
-      const saved = readSaved();
-      if (saved && saved.text) {
-        loadDataFromCSV(saved.text);
-        showSavedInfo();
-      }
-    })();
-
-    const onViewChange = () => { saveView(); renderBoard(); };
-    document.getElementById('hideEmptyInitToggle').addEventListener('change', onViewChange);
-    document.getElementById('hideEmptyEpicsToggle').addEventListener('change', onViewChange);
-    document.getElementById('hideDoneToggle').addEventListener('change', onViewChange);
-    document.getElementById('assigneeFilter').addEventListener('change', onViewChange);
-    document.getElementById('searchFilter').addEventListener('input', onViewChange);
-
-    // Open/close a single initiative or epic and remember the choice
-    document.getElementById('board').addEventListener('click', function(e) {
-      if (e.target.closest('a')) return; // Jira links shouldn't toggle
-      const header = e.target.closest('.row-header[data-key]');
-      if (!header) return;
-      const card = header.parentElement;
-      const nowOpen = card.classList.toggle('open');
-      openState[header.dataset.key] = nowOpen;
+  function toggleDetails(key) {
+    const drawer = document.getElementById(`desc-${key}`);
+    if (drawer) {
+      const hidden = drawer.classList.toggle('collapsed-desc');
+      nodeDescShown[key] = !hidden;
       saveView();
-    });
+    }
+  }
 
-    function updateToggleAllLabel() {
-      document.getElementById('toggleAllBtn').textContent = allExpanded ? 'Collapse all' : 'Expand all';
+  const fileInput = document.getElementById('fileInput');
+  fileInput.addEventListener('change', (e) => {
+    if (e.target.files && e.target.files.length > 0) {
+      handleFilesSelected(e.target.files);
+    }
+  });
+
+  window.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    document.getElementById('dropOverlay').classList.add('active');
+  });
+
+  ['dragleave', 'dragend'].forEach(type => {
+    window.addEventListener(type, () => {
+      document.getElementById('dropOverlay').classList.remove('active');
+    });
+  });
+
+  window.addEventListener('drop', (e) => {
+    e.preventDefault();
+    document.getElementById('dropOverlay').classList.remove('active');
+    if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      handleFilesSelected(e.dataTransfer.files);
+    }
+  });
+
+  const onViewChange = () => { saveView(); renderTree(); };
+  ['hideInitWithoutTasks', 'hideEpicsWithoutTasks', 'hideCompleted', 'onlyActiveIssues'].forEach(id => {
+    document.getElementById(id).addEventListener('change', onViewChange);
+  });
+  document.getElementById('statusSelect').addEventListener('change', onViewChange);
+  document.getElementById('assigneeSelect').addEventListener('change', onViewChange);
+  document.getElementById('labelSelect').addEventListener('change', onViewChange);
+  document.getElementById('searchInput').addEventListener('input', onViewChange);
+
+  document.getElementById('collapseAllBtn').addEventListener('click', () => {
+    allCollapsed = !allCollapsed;
+    nodeCollapsed = {};
+    document.getElementById('collapseAllBtn').textContent = allCollapsed ? 'Expand all' : 'Collapse all';
+    document.querySelectorAll('.children-container').forEach(el => {
+      if (allCollapsed) el.classList.add('is-hidden');
+      else el.classList.remove('is-hidden');
+    });
+    document.querySelectorAll('.chevron:not(.empty)').forEach(ch => {
+      ch.classList.toggle('collapsed', allCollapsed);
+    });
+    saveView();
+  });
+
+  document.getElementById('toggleAllDescBtn').addEventListener('click', () => {
+    descriptionsVisible = !descriptionsVisible;
+    nodeDescShown = {};
+    document.getElementById('toggleAllDescBtn').textContent = descriptionsVisible ? 'Hide descriptions' : 'Show descriptions';
+    document.querySelectorAll('.node-description-container').forEach(el => {
+      el.classList.toggle('collapsed-desc', !descriptionsVisible);
+    });
+    saveView();
+  });
+
+  function applyZoom(delta) {
+    if (delta === 0) zoom = 100;
+    else zoom = Math.max(60, Math.min(150, zoom + delta));
+    document.getElementById('zoomLevel').textContent = `${zoom}%`;
+    const container = document.getElementById('tree-container');
+    container.style.transform = `scale(${zoom / 100})`;
+    container.style.width = `${100 / (zoom / 100)}%`;
+    saveView();
+  }
+  document.getElementById('zoomInBtn').addEventListener('click', () => applyZoom(10));
+  document.getElementById('zoomOutBtn').addEventListener('click', () => applyZoom(-10));
+  document.getElementById('zoomResetBtn').addEventListener('click', () => applyZoom(0));
+
+  document.getElementById('clearSavedBtn').addEventListener('click', () => {
+    try { localStorage.removeItem(DATA_KEY); } catch (e) {}
+    rawIssues = [];
+    loadedInfo = '';
+    assigneeNameMap = {};
+    focusedEpicKey = null;
+    updateFocusVisuals();
+    populateDropdowns();
+    renderTree();
+    document.getElementById('statsBadge').textContent = '0 Initiatives - 0 Epics - 0 Tasks';
+  });
+
+  // Restore view settings, then data, on page load
+  (function restore() {
+    const v = readJSON(VIEW_KEY) || {};
+    ['hideInitWithoutTasks', 'hideEpicsWithoutTasks', 'hideCompleted', 'onlyActiveIssues'].forEach(id => {
+      if (typeof v[id] === 'boolean') document.getElementById(id).checked = v[id];
+    });
+    if (typeof v.search === 'string') document.getElementById('searchInput').value = v.search;
+    allCollapsed = !!v.allCollapsed;
+    descriptionsVisible = v.descriptionsVisible !== false;
+    nodeCollapsed = (v.nodeCollapsed && typeof v.nodeCollapsed === 'object') ? v.nodeCollapsed : {};
+    nodeDescShown = (v.nodeDescShown && typeof v.nodeDescShown === 'object') ? v.nodeDescShown : {};
+    document.getElementById('collapseAllBtn').textContent = allCollapsed ? 'Expand all' : 'Collapse all';
+    document.getElementById('toggleAllDescBtn').textContent = descriptionsVisible ? 'Hide descriptions' : 'Show descriptions';
+    if (typeof v.zoom === 'number') {
+      zoom = Math.max(60, Math.min(150, v.zoom));
+      const container = document.getElementById('tree-container');
+      document.getElementById('zoomLevel').textContent = `${zoom}%`;
+      container.style.transform = `scale(${zoom / 100})`;
+      container.style.width = `${100 / (zoom / 100)}%`;
     }
 
-    document.getElementById('toggleAllBtn').addEventListener('click', function() {
-      allExpanded = !allExpanded;
-      openState = {}; // "Expand/Collapse all" overrides individual choices
-      updateToggleAllLabel();
-      document.querySelectorAll('.initiative-card, .epic-block').forEach(el => {
-        el.classList.toggle('open', allExpanded);
+    const saved = readJSON(DATA_KEY);
+    if (saved && Array.isArray(saved.issues) && saved.issues.length) {
+      rawIssues = saved.issues;
+      rebuildNameMap();
+      setLoadedInfo(saved);
+      populateDropdowns();
+      // Re-apply saved dropdown choices once their options exist
+      [['statusSelect', v.status], ['labelSelect', v.label], ['assigneeSelect', v.assignee]].forEach(([id, val]) => {
+        const sel = document.getElementById(id);
+        if (val && Array.from(sel.options).some(o => o.value === val)) sel.value = val;
       });
-      saveView();
-    });
-
-    function setZoom(newZoom) {
-      zoom = Math.max(0.7, Math.min(2.0, newZoom));
-      document.getElementById('board').style.transform = `scale(${zoom})`;
-      document.getElementById('zoomLevel').textContent = `${Math.round(zoom * 100)}%`;
-      saveView();
+      renderTree();
     }
-
-    document.getElementById('zoomInBtn').addEventListener('click', () => setZoom(zoom + 0.1));
-    document.getElementById('zoomOutBtn').addEventListener('click', () => setZoom(zoom - 0.1));
-    document.getElementById('zoomResetBtn').addEventListener('click', () => setZoom(1.0));
-  </script>
+  })();
+</script>
 </body>
 </html>
